@@ -13,6 +13,8 @@ using Confluent.Kafka;
 using Stocks.Domain.Service.Events;
 using Stocks.Infrastructure.Services.Events;
 using System.Net;
+using VentaWorker.Domain.Service.WebServices;
+using VentaWorker.Infrastructure.Services.WebServices;
 
 
 namespace Stocks.Infrastructure
@@ -23,6 +25,14 @@ namespace Stocks.Infrastructure
             this IServiceCollection services, string connectionString
             )
         {
+
+            var httpClientBuilder = services.AddHttpClient<IProductoService, ProductoService>(
+                options =>
+                {
+                    options.BaseAddress = new Uri("http://localhost:5297/");
+                    options.Timeout = TimeSpan.FromMilliseconds(30000);
+                }
+                );
 
             services.AddDataBaseFactories(connectionString);
             services.AddRepositories();
@@ -78,5 +88,24 @@ namespace Stocks.Infrastructure
         {
             services.AddSingleton<IEventSender, EventSender>();
         }
+        //private static void SetHttpClient<TClient, TImplementation>(this IServiceCollection services, string constante) where TClient : class where TImplementation : class, TClient
+        //{
+
+        //    services.AddHttpClient<TClient, TImplementation>(options =>
+        //    {
+        //        options.Timeout = TimeSpan.FromMilliseconds(2000);
+        //    })
+        //    .SetHandlerLifetime(TimeSpan.FromMinutes(30))
+        //    .ConfigurePrimaryHttpMessageHandler(() =>
+        //    {
+        //        var handler = new HttpClientHandler();
+        //        //if (EnvironmentVariableProvider.IsDevelopment())
+        //        //{
+        //        //    handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => { return true; };
+        //        //}
+
+        //        return handler;
+        //    });
+        //}
     }
 }
