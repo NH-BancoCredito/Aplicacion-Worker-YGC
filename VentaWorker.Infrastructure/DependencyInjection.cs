@@ -15,6 +15,8 @@ using Stocks.Infrastructure.Services.Events;
 using System.Net;
 using VentaWorker.Domain.Service.WebServices;
 using VentaWorker.Infrastructure.Services.WebServices;
+using Polly.Extensions.Http;
+using Polly;
 
 
 namespace Stocks.Infrastructure
@@ -30,9 +32,10 @@ namespace Stocks.Infrastructure
                 options =>
                 {
                     options.BaseAddress = new Uri("http://localhost:5297/");
-                    options.Timeout = TimeSpan.FromMilliseconds(30000);
+                    //options.Timeout = TimeSpan.FromMilliseconds(30000);
                 }
-                );
+                ).SetHandlerLifetime(TimeSpan.FromMinutes(5))
+                .AddPolicyHandler(GetRetryPolicy());
 
             services.AddDataBaseFactories(connectionString);
             services.AddRepositories();
@@ -87,6 +90,31 @@ namespace Stocks.Infrastructure
         private static void AddEventServices(this IServiceCollection services)
         {
             services.AddSingleton<IEventSender, EventSender>();
+        }
+        private static IAsyncPolicy<HttpResponseMessage> GetRetryPolicy()
+        {
+            return HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .WaitAndRetryAsync(2,
+                            retryAttempts => TimeSpan.FromSeconds(Math.Pow(2, retryAttempts)));
+        }
+
+        private static IAsyncPolicy<HttpResponseMessage> GetCircuitBreakerPolicy()
+        {
+            Action<DelegateResult<HttpResponseMessage>, TimeSpan> onBreak = (result, timeSpan) =>
+            {
+                Console.WriteLine(result);
+            }
+            ;
+            Action onReset = null;
+            return HttpPolicyExtensions
+                .HandleTransientHttpError()
+                .OrTransientHttpError()
+                .CircuitBreakerAsync(5, TimeSpan.FromSeconds(30),
+                onBreak, onReset
+                );
+
+
         }
         //private static void SetHttpClient<TClient, TImplementation>(this IServiceCollection services, string constante) where TClient : class where TImplementation : class, TClient
         //{
